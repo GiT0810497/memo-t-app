@@ -2,6 +2,9 @@ import { nothing, type ReactiveController, type ReactiveControllerHost } from "l
 import type { AgentIdentityResult } from "../api/types.ts";
 import {
   cancelRoutePreload,
+  isPluginsHubRoute,
+  isSessionsHubRoute,
+  isSettingsNavigationRoute,
   scheduleRoutePreload,
   type NavigationRouteId,
   type SidebarZoneEntry,
@@ -697,15 +700,48 @@ export class SidebarMenusController implements ReactiveController, SidebarMenusC
     return renderSidebarNavRoute({
       routeId,
       href: sessionTarget?.href ?? pathForRoute(routeId, this.host.basePath),
-      active:
-        isSidebarRouteActive(this.host.activeRouteId, routeId) &&
-        !(routeId === "workboard" && this.activeWorkboardBoardIsPinned()),
+      active: this.sidebarRouteIsActive(routeId),
       onNavigate: () => {
         this.host.onNavigate?.(routeId, sessionTarget?.options);
       },
       onPreload: (event, immediate) => this.preloadRoute(routeId, event, immediate),
       onCancelPreload: this.cancelPreload,
     });
+  }
+
+  private sidebarRouteIsActive(routeId: NavigationRouteId): boolean {
+    const active = this.host.activeRouteId;
+    if (!isSidebarRouteActive(active, routeId)) {
+      return false;
+    }
+    if (routeId === "workboard" && this.activeWorkboardBoardIsPinned()) {
+      return false;
+    }
+    // Hub rows highlight on behalf of other routes (Settings for settings
+    // pages, Plugins for Skills/Workshop, Sessions for Worktrees). When that
+    // route has its own pinned sidebar entry, the pinned entry owns the
+    // highlight so two rows never read as active at once.
+    if (active && active !== routeId && this.highlightsOnBehalfOfActiveRoute(routeId, active)) {
+      return !this.routeIsPinned(active);
+    }
+    return true;
+  }
+
+  private highlightsOnBehalfOfActiveRoute(
+    routeId: NavigationRouteId,
+    active: NavigationRouteId,
+  ): boolean {
+    return (
+      (routeId === "config" && isSettingsNavigationRoute(active)) ||
+      (routeId === "plugins" && isPluginsHubRoute(active)) ||
+      (routeId === "sessions" && isSessionsHubRoute(active))
+    );
+  }
+
+  private routeIsPinned(routeId: NavigationRouteId): boolean {
+    return this.host
+      .reconciledSidebarZone()
+      .entries.some((entry) => entry.type === "route" && entry.route === routeId);
   }
 
   renderMoreMenu() {

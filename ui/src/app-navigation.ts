@@ -14,19 +14,25 @@ type NavigationItem = {
 // The sidebar shows a small user-customizable ordered zone; every other nav route
 // lives in the collapsed "More" section. Chat is reachable through the session
 // list and Settings/Docs live in the sidebar footer, so neither is listed here.
-// Skills and Skill Workshop are tabs inside the Plugins hub, not sidebar items.
-// Worktrees is a tab of the Sessions hub, so it is not listed either.
-// Workboard is plugin-owned and enters the zone through its Control UI descriptor.
+// Channels, Automations, and Skills lead the order because unified-product
+// deployments (Windows Hub thin shell, knowledge-base appliance) treat channel
+// binding, scheduled reports, and skills as primary destinations. Skills is
+// also a tab of the Plugins hub; pinning it directly still highlights correctly.
+// Skill Workshop stays a Plugins-hub tab and Worktrees a Sessions-hub tab, so
+// neither is listed. Workboard is plugin-owned and enters the zone through its
+// Control UI descriptor.
 export const SIDEBAR_NAV_ROUTES = [
-  "dashboards",
-  "usage",
+  "channels",
   "cron",
-  "tasks",
+  "skills",
   "sessions",
-  "activity",
+  "tasks",
+  "usage",
+  "dashboards",
   "plugins",
   "apps",
   "portals",
+  "activity",
 ] as const satisfies readonly NavigationRouteId[];
 
 // `route:workboard` shipped in browser and synced preferences before Workboard
@@ -65,9 +71,11 @@ export type SidebarZoneEntry =
   | { type: "workboard"; boardId: string }
   | { type: "session"; key: string };
 
-// Keep the highest-value operational destinations visible on first use. Users
-// can still replace this route set through the customize menu.
-export const DEFAULT_SIDEBAR_ENTRIES = ["cron", "plugins"].map((route) =>
+// Keep the highest-value operational destinations visible on first use:
+// channel binding (WeChat-first deployments), scheduled automations (daily
+// report presets), and skills (knowledge base). Users can still replace this
+// route set through the customize menu.
+export const DEFAULT_SIDEBAR_ENTRIES = ["channels", "cron", "skills"].map((route) =>
   serializeSidebarEntry({ type: "route", route: route as SidebarNavRoute }),
 );
 

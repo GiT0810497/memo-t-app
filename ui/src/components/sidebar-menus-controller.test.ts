@@ -62,3 +62,38 @@ describe("SidebarMenusController session routes", () => {
     });
   });
 });
+
+describe("SidebarMenusController hub highlight", () => {
+  const createHost = (
+    activeRouteId: string,
+    pinnedRoutes: string[],
+  ): ConstructorParameters<typeof SidebarMenusController>[0] =>
+    ({
+      activeRouteId,
+      addController: vi.fn(),
+      reconciledSidebarZone: () => ({
+        entries: pinnedRoutes.map((route) => ({ type: "route", route })),
+      }),
+    }) as unknown as ConstructorParameters<typeof SidebarMenusController>[0];
+
+  it("yields the Plugins hub highlight to a pinned Skills entry", () => {
+    const host = createHost("skills", ["skills"]);
+    const controller = new SidebarMenusController(host);
+    const container = document.createElement("div");
+
+    render(controller.renderRoute("plugins"), container);
+    expect(container.querySelector("a")?.classList.contains("nav-item--active")).toBe(false);
+
+    render(controller.renderRoute("skills"), container);
+    expect(container.querySelector("a")?.classList.contains("nav-item--active")).toBe(true);
+  });
+
+  it("keeps the Plugins hub highlight when Skills is not pinned", () => {
+    const host = createHost("skills", ["plugins"]);
+    const controller = new SidebarMenusController(host);
+    const container = document.createElement("div");
+
+    render(controller.renderRoute("plugins"), container);
+    expect(container.querySelector("a")?.classList.contains("nav-item--active")).toBe(true);
+  });
+});

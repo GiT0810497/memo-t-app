@@ -33,7 +33,6 @@ const ALL_ROUTES: RouteId[] = Array.from(
     "custodian",
     ...SIDEBAR_NAV_ROUTES,
     "workboard",
-    "skills",
     "skill-workshop",
     // Hub tabs and settings subpages route without their own nav entry.
     "worktrees",
@@ -520,15 +519,17 @@ describe("plugin tabs route", () => {
 describe("SIDEBAR_NAV_ROUTES", () => {
   it("keeps the canonical sidebar route order", () => {
     expect(SIDEBAR_NAV_ROUTES).toEqual([
-      "dashboards",
-      "usage",
+      "channels",
       "cron",
-      "tasks",
+      "skills",
       "sessions",
-      "activity",
+      "tasks",
+      "usage",
+      "dashboards",
       "plugins",
       "apps",
       "portals",
+      "activity",
     ]);
   });
 
