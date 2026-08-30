@@ -81,6 +81,8 @@ const TRAIN_2026_7_METHODS = [
 ] as const;
 
 const CURRENT_TRAIN_METHODS = [
+  "channels.login.start",
+  "channels.login.wait",
   "diagnostics.lanes",
   "plugins.inspect",
   "device.pair.setupStatus",

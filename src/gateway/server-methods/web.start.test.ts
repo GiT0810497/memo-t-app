@@ -256,6 +256,61 @@ describe("webHandlers web.login.start", () => {
     expect(respond).toHaveBeenCalledWith(true, result, undefined);
   });
 
+  it("selects an explicit channel by id without requiring legacy method ownership metadata", async () => {
+    const loginWithQrStart = vi.fn().mockResolvedValue({
+      qrDataUrl: "weixin-qr-content",
+      message: "scan",
+      sessionKey: "session-1",
+    });
+    mocks.listChannelPlugins.mockReturnValue([
+      {
+        id: "openclaw-weixin",
+        gateway: { loginWithQrStart },
+      },
+    ]);
+    const respond = vi.fn();
+
+    await expectDefined(
+      webHandlers["channels.login.start"],
+      'webHandlers["channels.login.start"] test invariant',
+    )(
+      createOptions(
+        { channel: "openclaw-weixin" },
+        {
+          req: {
+            type: "req",
+            id: "req-channel-start",
+            method: "channels.login.start",
+            params: { channel: "openclaw-weixin" },
+          } as GatewayRequestHandlerOptions["req"],
+          respond,
+          context: {
+            stopChannel: vi.fn(),
+            startChannel: vi.fn(),
+            getRuntimeSnapshot: vi.fn(() => ({ channels: {}, channelAccounts: {} })),
+            getRuntimeConfig: vi.fn(() => ({ channels: {} })),
+          } as unknown as GatewayRequestHandlerOptions["context"],
+        },
+      ),
+    );
+
+    expect(loginWithQrStart).toHaveBeenCalledWith({
+      accountId: undefined,
+      force: false,
+      timeoutMs: undefined,
+      verbose: false,
+    });
+    expect(respond).toHaveBeenCalledWith(
+      true,
+      {
+        qrDataUrl: "weixin-qr-content",
+        message: "scan",
+        sessionKey: "session-1",
+      },
+      undefined,
+    );
+  });
+
   it("preserves gateway method receiver state for login start", async () => {
     const gateway = {
       marker: "gateway-state",
@@ -356,6 +411,8 @@ describe("webHandlers web.login.wait", () => {
       accountId: "default",
       timeoutMs: 5000,
       currentQrDataUrl: "data:image/png;base64,current-qr",
+      sessionKey: undefined,
+      verifyCode: undefined,
     });
     expect(respond).toHaveBeenCalledWith(
       true,
@@ -366,5 +423,48 @@ describe("webHandlers web.login.wait", () => {
       },
       undefined,
     );
+  });
+
+  it("forwards explicit channel login session and verification code", async () => {
+    const loginWithQrWait = vi.fn().mockResolvedValue({
+      connected: false,
+      message: "verification required",
+      verificationRequired: true,
+    });
+    mocks.listChannelPlugins.mockReturnValue([
+      {
+        id: "openclaw-weixin",
+        gateway: { loginWithQrWait },
+      },
+    ]);
+    const respond = vi.fn();
+
+    const params = {
+      channel: "openclaw-weixin",
+      sessionKey: "session-1",
+      verifyCode: "123456",
+    };
+    await expectDefined(
+      webHandlers["channels.login.wait"],
+      'webHandlers["channels.login.wait"] test invariant',
+    )(
+      createOptions(params, {
+        req: {
+          type: "req",
+          id: "req-channel-wait",
+          method: "channels.login.wait",
+          params,
+        } as GatewayRequestHandlerOptions["req"],
+        respond,
+      }),
+    );
+
+    expect(loginWithQrWait).toHaveBeenCalledWith({
+      accountId: undefined,
+      timeoutMs: undefined,
+      currentQrDataUrl: undefined,
+      sessionKey: "session-1",
+      verifyCode: "123456",
+    });
   });
 });

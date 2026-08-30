@@ -486,6 +486,8 @@ const CORE_GATEWAY_METHOD_SPECS = [
   ["sessions.catalog.list", "session-catalog", "operator.read", "2026.7"],
   ["sessions.catalog.read", "session-catalog", "operator.read", "2026.7"],
   ["terminal.upload", "terminal", "operator.admin", "2026.7"],
+  ["channels.login.start", "web", "operator.admin", "2026.8"],
+  ["channels.login.wait", "web", "operator.admin", "2026.8"],
   ["sessions.catalog.continue", "session-catalog", "operator.write", "2026.7"],
   ["sessions.catalog.archive", "session-catalog", "operator.write", "2026.7"],
   ["approval.get", null, "operator.approvals", "2026.7"],

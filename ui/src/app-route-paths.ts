@@ -26,6 +26,7 @@ type AgentRoutePath = {
 
 const APP_ROUTE_DEFINITIONS = {
   chat: { path: "/chat" },
+  wechat: { path: "/wechat" },
   dashboard: { path: "/dashboard" },
   dashboards: { path: "/dashboards" },
   custodian: { path: "/custodian" },

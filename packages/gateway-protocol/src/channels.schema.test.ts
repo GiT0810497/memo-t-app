@@ -17,6 +17,19 @@ describe("WebLoginWaitParamsSchema", () => {
   /** Compiled validator reused across QR bounds cases. */
   const validate = Compile(WebLoginWaitParamsSchema);
 
+  it("accepts an explicit channel login session and verification code", () => {
+    expect(
+      validate.Check({
+        channel: "openclaw-weixin",
+        sessionKey: "session-1",
+        verifyCode: "123456",
+        timeoutMs: 30_000,
+      }),
+    ).toBe(true);
+    expect(validate.Check({ channel: "openclaw-weixin", verifyCode: "" })).toBe(false);
+    expect(validate.Check({ channel: "openclaw-weixin", unexpected: true })).toBe(false);
+  });
+
   it("bounds caller-provided QR data URLs", () => {
     expect(
       validate.Check({

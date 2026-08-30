@@ -1,0 +1,113 @@
+/* WeChat account management and QR login, layered on the shared settings
+   design language (settings.css). */
+
+.wechat-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wechat-account {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.wechat-account__copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.wechat-account__label,
+.wechat-account__id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wechat-account__id,
+.wechat-account__status {
+  font-size: var(--control-ui-text-xs);
+  color: var(--muted);
+}
+
+.wechat-bind {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.wechat-bind__qr {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: white;
+}
+
+.wechat-bind__message,
+.wechat-bind__offline,
+.wechat-bind__success,
+.wechat-bind__error {
+  margin: 0;
+  font-size: var(--control-ui-text-sm);
+}
+
+.wechat-bind__message,
+.wechat-bind__offline {
+  color: var(--muted);
+}
+
+.wechat-bind__success {
+  color: var(--ok);
+}
+
+.wechat-bind__error {
+  color: var(--danger);
+}
+
+.wechat-bind__actions,
+.wechat-bind__footer-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.wechat-bind__verify {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--control-ui-text-sm);
+}
+
+.wechat-bind__verify input {
+  width: min(280px, 100%);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--card);
+}
+
+@media (max-width: 640px) {
+  .wechat-account {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .wechat-account__status {
+    grid-column: 1;
+  }
+}

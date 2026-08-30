@@ -19,7 +19,7 @@ const settingsRoutes = settingsGroups.flatMap((group) => group.routes);
 
 describe("sidebar entries", () => {
   it("keeps operational destinations visible by default", () => {
-    expect(DEFAULT_SIDEBAR_ENTRIES).toEqual(["route:channels", "route:cron", "route:skills"]);
+    expect(DEFAULT_SIDEBAR_ENTRIES).toEqual(["route:wechat", "route:cron", "route:skills"]);
   });
 
   it("drops retired routes from persisted entries", () => {

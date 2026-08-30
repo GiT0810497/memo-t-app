@@ -16,23 +16,29 @@ import { assertValidParams } from "./validation.js";
 
 const WEB_LOGIN_METHODS = new Set(["web.login.start", "web.login.wait"]);
 
-/** Resolves the channel plugin that currently owns web QR-login methods. */
-const resolveWebLoginProvider = () =>
-  listChannelPlugins().find((plugin) =>
-    [
-      ...(plugin.gatewayMethods ?? []),
-      ...(plugin.gatewayMethodDescriptors ?? []).map((descriptor) => descriptor.name),
-    ].some((method) => WEB_LOGIN_METHODS.has(method)),
-  ) ?? null;
+/** Resolves either the explicitly requested channel or the legacy sole QR-login owner. */
+const resolveWebLoginProvider = (channelId?: string) => {
+  const plugins = listChannelPlugins();
+  if (channelId) {
+    return plugins.find((plugin) => plugin.id === channelId) ?? null;
+  }
+  return (
+    plugins.find((plugin) =>
+      [
+        ...(plugin.gatewayMethods ?? []),
+        ...(plugin.gatewayMethodDescriptors ?? []).map((descriptor) => descriptor.name),
+      ].some((method) => WEB_LOGIN_METHODS.has(method)),
+    ) ?? null
+  );
+};
 
 type WebLoginProvider = NonNullable<ReturnType<typeof resolveWebLoginProvider>>;
 type WebLoginGateway = NonNullable<WebLoginProvider["gateway"]>;
 type WebLoginGatewayMethod = "loginWithQrStart" | "loginWithQrWait";
 
-function resolveAccountId(params: unknown): string | undefined {
-  return typeof (params as { accountId?: unknown }).accountId === "string"
-    ? (params as { accountId?: string }).accountId
-    : undefined;
+function resolveOptionalString(params: unknown, key: string): string | undefined {
+  const value = (params as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : undefined;
 }
 
 function resolveMissingWebLoginPluginHint(context: GatewayRequestContext): string | null {
@@ -91,8 +97,9 @@ function resolveWebLoginRequest<TMethod extends WebLoginGatewayMethod>(params: {
   provider: WebLoginProvider;
   run: NonNullable<WebLoginGateway[TMethod]>;
 } | null {
-  const accountId = resolveAccountId(params.rawParams);
-  const provider = resolveWebLoginProvider();
+  const accountId = resolveOptionalString(params.rawParams, "accountId");
+  const channelId = resolveOptionalString(params.rawParams, "channel");
+  const provider = resolveWebLoginProvider(channelId);
   if (!provider) {
     respondProviderUnavailable({
       respond: params.respond,
@@ -129,83 +136,101 @@ function wasChannelRunning(params: {
   return defaultRuntime?.accountId === params.accountId && defaultRuntime.running === true;
 }
 
-/** Gateway handlers for plugin-owned web QR-login flows. */
+const handleChannelLoginStart: GatewayRequestHandlers[string] = async ({
+  params,
+  respond,
+  context,
+  req,
+}) => {
+  if (!assertValidParams(params, validateWebLoginStartParams, req.method, respond)) {
+    return;
+  }
+  try {
+    const request = resolveWebLoginRequest({
+      rawParams: params,
+      respond,
+      context,
+      gatewayMethod: "loginWithQrStart",
+    });
+    if (!request) {
+      return;
+    }
+    const { accountId, provider, run } = request;
+    const wasRunning = wasChannelRunning({
+      context,
+      channelId: provider.id,
+      accountId,
+    });
+    const forceLogin = Boolean(params.force);
+    const stoppedBeforeLogin = forceLogin || !wasRunning;
+    if (stoppedBeforeLogin) {
+      await context.stopChannel(provider.id, accountId);
+    }
+    const result = await run({
+      force: forceLogin,
+      timeoutMs: typeof params.timeoutMs === "number" ? params.timeoutMs : undefined,
+      verbose: Boolean(params.verbose),
+      accountId,
+    });
+    const stoppedAfterQrTakeover = !stoppedBeforeLogin && Boolean(result.qrDataUrl);
+    if (stoppedAfterQrTakeover) {
+      await context.stopChannel(provider.id, accountId);
+    }
+    const stoppedForLogin = stoppedBeforeLogin || stoppedAfterQrTakeover;
+    if (result.connected && stoppedForLogin) {
+      await context.startChannel(provider.id, accountId);
+    } else if (wasRunning && stoppedForLogin && !result.qrDataUrl) {
+      // When start fails before producing a QR code, restore the previously
+      // running channel/account so a transient login failure does not stop it.
+      await context.startChannel(provider.id, accountId);
+    }
+    respond(true, result, undefined);
+  } catch (err) {
+    respondWebLoginUnavailable(respond, err);
+  }
+};
+
+const handleChannelLoginWait: GatewayRequestHandlers[string] = async ({
+  params,
+  respond,
+  context,
+  req,
+}) => {
+  if (!assertValidParams(params, validateWebLoginWaitParams, req.method, respond)) {
+    return;
+  }
+  try {
+    const request = resolveWebLoginRequest({
+      rawParams: params,
+      respond,
+      context,
+      gatewayMethod: "loginWithQrWait",
+    });
+    if (!request) {
+      return;
+    }
+    const { accountId, provider, run } = request;
+    const result = await run({
+      timeoutMs: typeof params.timeoutMs === "number" ? params.timeoutMs : undefined,
+      accountId,
+      sessionKey: typeof params.sessionKey === "string" ? params.sessionKey : undefined,
+      verifyCode: typeof params.verifyCode === "string" ? params.verifyCode : undefined,
+      currentQrDataUrl:
+        typeof params.currentQrDataUrl === "string" ? params.currentQrDataUrl : undefined,
+    });
+    if (result.connected) {
+      await context.startChannel(provider.id, result.accountId ?? accountId);
+    }
+    respond(true, result, undefined);
+  } catch (err) {
+    respondWebLoginUnavailable(respond, err);
+  }
+};
+
+/** Legacy generic aliases plus advertised channel-specific QR-login methods. */
 export const webHandlers: GatewayRequestHandlers = {
-  "web.login.start": async ({ params, respond, context }) => {
-    if (!assertValidParams(params, validateWebLoginStartParams, "web.login.start", respond)) {
-      return;
-    }
-    try {
-      const request = resolveWebLoginRequest({
-        rawParams: params,
-        respond,
-        context,
-        gatewayMethod: "loginWithQrStart",
-      });
-      if (!request) {
-        return;
-      }
-      const { accountId, provider, run } = request;
-      const wasRunning = wasChannelRunning({
-        context,
-        channelId: provider.id,
-        accountId,
-      });
-      const forceLogin = Boolean(params.force);
-      const stoppedBeforeLogin = forceLogin || !wasRunning;
-      if (stoppedBeforeLogin) {
-        await context.stopChannel(provider.id, accountId);
-      }
-      const result = await run({
-        force: forceLogin,
-        timeoutMs: typeof params.timeoutMs === "number" ? params.timeoutMs : undefined,
-        verbose: Boolean(params.verbose),
-        accountId,
-      });
-      const stoppedAfterQrTakeover = !stoppedBeforeLogin && Boolean(result.qrDataUrl);
-      if (stoppedAfterQrTakeover) {
-        await context.stopChannel(provider.id, accountId);
-      }
-      const stoppedForLogin = stoppedBeforeLogin || stoppedAfterQrTakeover;
-      if (result.connected && stoppedForLogin) {
-        await context.startChannel(provider.id, accountId);
-      } else if (wasRunning && stoppedForLogin && !result.qrDataUrl) {
-        // When start fails before producing a QR code, restore the previously
-        // running channel/account so a transient login failure does not stop it.
-        await context.startChannel(provider.id, accountId);
-      }
-      respond(true, result, undefined);
-    } catch (err) {
-      respondWebLoginUnavailable(respond, err);
-    }
-  },
-  "web.login.wait": async ({ params, respond, context }) => {
-    if (!assertValidParams(params, validateWebLoginWaitParams, "web.login.wait", respond)) {
-      return;
-    }
-    try {
-      const request = resolveWebLoginRequest({
-        rawParams: params,
-        respond,
-        context,
-        gatewayMethod: "loginWithQrWait",
-      });
-      if (!request) {
-        return;
-      }
-      const { accountId, provider, run } = request;
-      const result = await run({
-        timeoutMs: typeof params.timeoutMs === "number" ? params.timeoutMs : undefined,
-        accountId,
-        currentQrDataUrl:
-          typeof params.currentQrDataUrl === "string" ? params.currentQrDataUrl : undefined,
-      });
-      if (result.connected) {
-        await context.startChannel(provider.id, accountId);
-      }
-      respond(true, result, undefined);
-    } catch (err) {
-      respondWebLoginUnavailable(respond, err);
-    }
-  },
+  "web.login.start": handleChannelLoginStart,
+  "web.login.wait": handleChannelLoginWait,
+  "channels.login.start": handleChannelLoginStart,
+  "channels.login.wait": handleChannelLoginWait,
 };

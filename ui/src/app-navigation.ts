@@ -14,7 +14,7 @@ type NavigationItem = {
 // The sidebar shows a small user-customizable ordered zone; every other nav route
 // lives in the collapsed "More" section. Chat is reachable through the session
 // list and Settings/Docs live in the sidebar footer, so neither is listed here.
-// Channels, Automations, and Skills lead the order because unified-product
+// WeChat binding, Automations, and Skills lead the order because unified-product
 // deployments (Windows Hub thin shell, knowledge-base appliance) treat channel
 // binding, scheduled reports, and skills as primary destinations. Skills is
 // also a tab of the Plugins hub; pinning it directly still highlights correctly.
@@ -22,6 +22,7 @@ type NavigationItem = {
 // neither is listed. Workboard is plugin-owned and enters the zone through its
 // Control UI descriptor.
 export const SIDEBAR_NAV_ROUTES = [
+  "wechat",
   "channels",
   "cron",
   "skills",
@@ -72,10 +73,10 @@ export type SidebarZoneEntry =
   | { type: "session"; key: string };
 
 // Keep the highest-value operational destinations visible on first use:
-// channel binding (WeChat-first deployments), scheduled automations (daily
-// report presets), and skills (knowledge base). Users can still replace this
-// route set through the customize menu.
-export const DEFAULT_SIDEBAR_ENTRIES = ["channels", "cron", "skills"].map((route) =>
+// WeChat binding, scheduled automations (daily report presets), and skills
+// (knowledge base). Users can still replace this route set through the
+// customize menu.
+export const DEFAULT_SIDEBAR_ENTRIES = ["wechat", "cron", "skills"].map((route) =>
   serializeSidebarEntry({ type: "route", route: route as SidebarNavRoute }),
 );
 
@@ -289,6 +290,7 @@ const NAVIGATION_ICONS: NavigationItem = {
   devices: "monitorSmartphone",
   "cloud-workers": "server",
   chat: "messageSquare",
+  wechat: "messageSquare",
   dashboard: "layoutDashboard",
   dashboards: "layoutDashboard",
   custodian: "lobster",
@@ -405,6 +407,7 @@ const NAVIGATION_COPY: Record<NavigationRouteId, { titleKey: string; subtitleKey
     subtitleKey: "subtitles.cloudWorkers",
   },
   chat: { titleKey: "tabs.chat", subtitleKey: "subtitles.chat" },
+  wechat: { titleKey: "tabs.wechat", subtitleKey: "subtitles.wechat" },
   dashboard: { titleKey: "tabs.chat", subtitleKey: "subtitles.chat" },
   dashboards: { titleKey: "tabs.dashboards", subtitleKey: "subtitles.dashboards" },
   custodian: { titleKey: "tabs.custodian", subtitleKey: "subtitles.custodian" },
