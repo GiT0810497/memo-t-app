@@ -41,6 +41,7 @@ function createGateway(
   plugin: PluginCatalogItem,
   supportsAccountLogin = true,
   canManageAccounts = true,
+  supportsPluginAccountManagement = true,
 ) {
   const request = vi.fn(async (method: string) => {
     if (method === "plugins.list") {
@@ -51,7 +52,9 @@ function createGateway(
         ? {
             ...emptyChannelSnapshot,
             channels: {
-              "openclaw-weixin": { controlUiAccountManagement: true },
+              "openclaw-weixin": supportsPluginAccountManagement
+                ? { controlUiAccountManagement: true }
+                : {},
             },
           }
         : emptyChannelSnapshot;
@@ -109,14 +112,22 @@ function createContext(
   plugin: PluginCatalogItem,
   supportsAccountLogin = true,
   canManageAccounts = true,
+  supportsPluginAccountManagement = true,
 ) {
-  const source = createGateway(plugin, supportsAccountLogin, canManageAccounts);
+  const source = createGateway(
+    plugin,
+    supportsAccountLogin,
+    canManageAccounts,
+    supportsPluginAccountManagement,
+  );
   const channels = createChannelCapability(source.gateway);
   channels.state.channelsSnapshot = plugin.enabled
     ? {
         ...emptyChannelSnapshot,
         channels: {
-          "openclaw-weixin": { controlUiAccountManagement: true },
+          "openclaw-weixin": supportsPluginAccountManagement
+            ? { controlUiAccountManagement: true }
+            : {},
         },
       }
     : emptyChannelSnapshot;
@@ -135,8 +146,14 @@ async function renderPage(
   plugin: PluginCatalogItem,
   supportsAccountLogin = true,
   canManageAccounts = true,
+  supportsPluginAccountManagement = true,
 ) {
-  const source = createContext(plugin, supportsAccountLogin, canManageAccounts);
+  const source = createContext(
+    plugin,
+    supportsAccountLogin,
+    canManageAccounts,
+    supportsPluginAccountManagement,
+  );
   const page = document.createElement("openclaw-wechat-page") as WechatPageTestElement;
   page.context = source.context;
   document.body.append(page);
@@ -189,6 +206,14 @@ describe("WechatPage account management", () => {
     channels.dispose();
   });
 
+  it("gates account login when the Weixin plugin lacks the UI contract", async () => {
+    const { page, channels } = await renderPage(enabledPlugin, true, true, false);
+
+    await vi.waitFor(() => expect(page.textContent).toContain("请更新 Gateway"));
+    expect(findButton(page, "添加账号")).toBeUndefined();
+    channels.dispose();
+  });
+
   it("renders account management read-only without administrator scope", async () => {
     const { page, channels } = await renderPage(enabledPlugin, true, false);
 
@@ -213,6 +238,28 @@ describe("WechatPage account management", () => {
       "channels.login.start",
       expect.objectContaining({ channel: "openclaw-weixin", force: true }),
       { timeoutMs: 45_000 },
+    );
+    channels.dispose();
+  });
+
+  it("restarts account login when retrying an error", async () => {
+    const { page, channels, request } = await renderPage(enabledPlugin);
+    await vi.waitFor(() => expect(page.textContent).toContain("已安装并启用"));
+    request.mockImplementation(async (method: string) => {
+      if (method === "channels.login.start") {
+        throw new Error("network unavailable");
+      }
+      return {};
+    });
+
+    findButton(page, "添加账号")?.click();
+    await vi.waitFor(() => expect(findButton(page, "重新尝试")).toBeDefined());
+    findButton(page, "重新尝试")?.click();
+
+    await vi.waitFor(() =>
+      expect(
+        request.mock.calls.filter(([method]) => method === "channels.login.start"),
+      ).toHaveLength(2),
     );
     channels.dispose();
   });

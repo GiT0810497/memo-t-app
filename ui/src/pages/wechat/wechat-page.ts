@@ -471,6 +471,11 @@ class WechatPage extends OpenClawLightDomElement {
     `;
   }
 
+  private retryAddAccount() {
+    this.cancelAddAccount();
+    void this.startAddAccount();
+  }
+
   private renderAddAccountFlow() {
     if (this.addPhase === "success") {
       return html`
@@ -487,7 +492,7 @@ class WechatPage extends OpenClawLightDomElement {
         <section class="settings-section">
           <p class="wechat-bind__error">${this.loginMessage}</p>
           <div class="wechat-bind__actions">
-            <wa-button variant="brand" @click=${() => this.cancelAddAccount()}
+            <wa-button variant="brand" @click=${() => this.retryAddAccount()}
               >${t("wechatPage.retry")}</wa-button
             >
             <wa-button variant="default" @click=${() => this.cancelAddAccount()}

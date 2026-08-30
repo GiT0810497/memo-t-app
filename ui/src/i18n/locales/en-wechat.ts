@@ -11,7 +11,8 @@ const enWechat = {
     installDescription: "请先在运行 Gateway 的设备上安装官方微信插件。",
     enableDescription: "请启用微信插件并重启 Gateway。",
     pluginReady: "微信连接组件已安装并启用。",
-    gatewayUpgradeRequired: "当前 Gateway 版本不支持页面扫码登录，请更新 Gateway 后刷新页面。",
+    gatewayUpgradeRequired:
+      "当前 Gateway 或微信连接组件版本不支持页面扫码登录，请更新 Gateway 和微信连接组件后刷新页面。",
     accountsTitle: "微信账号",
     accountsDescription: "添加、查看或删除此设备连接的微信账号。",
     administratorRequired: "需要管理员权限才能添加或删除微信账号。",
